@@ -18,7 +18,7 @@ def Main():
     Setup()
     #HandleBlockButton()
     statusMessage = GetStatusBarMessage()
-    print(json.dumps(statusMessage))
+    print(statusMessage)
 
 def Setup():
     global accuApiKey
@@ -45,11 +45,10 @@ def HandleBlockButton():
 
 def GetStatusBarMessage():
     global owmApiKey
-    result = dict()
+    result = ""
 
     if not IsInternetConnected() :
-        result['full_text'] = "--"
-        result['color'] = str(constants["colors"]["block_text_color_degraded"])
+        result = str("--\u2109 --")
         return result 
 
     # Get the current of this computer
@@ -66,11 +65,8 @@ def GetStatusBarMessage():
     #print("Status: %s" % weather.get_status())
     #print("Temp: %s\u2109" % int(weather.get_temperature(_TEMP_UNIT_)["temp"]))
     
-    message = str("%s\u2109 : %s" % (int(weather.get_temperature(_TEMP_UNIT_)["temp"]),
+    result = str("%s\u2109  %s" % (int(weather.get_temperature(_TEMP_UNIT_)["temp"]),
                                     weather.get_status()))
-                                    
-    result["full_text"] = message
-    result["color"] = constants["colors"]["block_text_color_normal"]
     
     return result
 
