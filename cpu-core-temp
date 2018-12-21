@@ -1,0 +1,38 @@
+#!/bin/sh
+
+. ~/bin/i3blocks/block-constants
+
+# How to get cpu usage. From the i3blocks cpu_usage source
+# https://github.com/vivien/i3blocks-contrib/blob/master/cpu_usage/cpu_usage
+
+#case $BLOCK_BUTTON in
+	#1) echo "Left click action" ;;
+	#2) echo "Right click action" ;;
+#esac
+
+if [ "$1" = "-h" ] ; then
+	echo "cpu-core-temp <core_number> <alarm_threshold>"
+	exit 0
+fi
+
+coreNumber=$1
+alarmThreshold=$2
+
+colorstr=$BLOCK_TEXT_COLOR_NORMAL
+tempstr=""
+
+case $coreNumber in
+	"0") tempstr="$(sensors | awk '/^Core 0/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
+	"1") tempstr="$(sensors | awk '/^Core 1/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
+	"2") tempstr="$(sensors | awk '/^Core 2/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
+	"3") tempstr="$(sensors | awk '/^Core 3/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
+	*) echo "Unkown core number $coreNumber"; exit 1 ;;
+esac
+
+tempnum="$(echo $tempstr | grep -oE '^[0-9]+')"
+
+if [ "$tempnum" -gt "$alarmThreshold" ] || [ $tempnum = $alarmThreshold ] ; then
+	colorstr=$BLOCK_TEXT_COLOR_BAD
+fi
+
+echo "{\"name\":\"Core $coreNumber\",\"full_text\":\"$tempstr\",\"color\":\"$colorstr\"}"

@@ -1,0 +1,36 @@
+#!/bin/sh
+
+acstat="$(acpi --ac-adapter | awk '/^Adapter 0:/ {print $3}')"
+batstat="$(acpi --battery | awk '/^Battery 0:/ {print}')"
+batmode="$(echo $batstat | awk '{print $3}' | sed 's/,//')"
+batlvl="$(echo $batstat | awk '{print $4}' | sed 's/,//')"
+battime="$(echo $batstat | awk '{print $5}')"
+result="--"
+
+if [ "$acstat" = 'on-line' ] ; then
+	if [ "$batmode" = 'Discharging' ] && [ "$batlvl" = "0%" ] ; then
+		result="AC"
+	elif [ "$batlvl" = "100%" ] ; then
+		result="BAT-F"
+	else
+		result="BAT-C $batlvl ($battime)"
+	fi
+else
+	if [ "$batmode" = 'Discharging' ] ; then
+		result="BAT-D ($battime)"
+	fi
+fi
+
+#case $BLOCK_BUTTON in
+	#1) echo "Left click action" ;;
+	#2) echo "Right click action" ;;
+#esac
+if [ "$1" = '-V' ] ; then
+	echo "acpi -a: $acstat"
+	echo "acpi -b: $batstat"
+	echo "battery mode: $batmode"
+	echo "battery level: $batlvl"
+	echo "battery time: $battime"
+fi
+
+echo "$result"

@@ -1,0 +1,20 @@
+#!/bin/bash
+
+WIDTH=200
+HEIGHT=160
+DATE_FORMAT="+%a %b %e, %Y %l:%M %p"
+
+case "$BLOCK_BUTTON" in
+    1|2|3)
+        posX=$(($BLOCK_X - $WIDTH))
+        posY=20
+
+        i3-msg -q "exec yad --calendar \
+            --width=$WIDTH --height=$HEIGHT \
+            --undecorated --fixed \
+            --close-on-unfocus --no-buttons \
+            --posx=$posX --posy=$posY \
+            > /dev/null"
+esac
+
+echo $(date "$DATE_FORMAT")

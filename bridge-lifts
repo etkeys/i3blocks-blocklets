@@ -1,0 +1,23 @@
+#!/bin/sh
+
+case $BLOCK_BUTTON in 
+	#1) echo "Left click action" ;;
+	3) curl 'http://www.511virginia.org/mobile/?menu_id=Chesapeake&ident=City%7CChesapeake' > ~/tmp/bridge-lift-page.out
+esac
+
+. ~/bin/i3blocks/block-constants
+
+liftScheduled="$(curl -s 'http://www.511virginia.org/mobile/?menu_id=Chesapeake&ident=City%7CChesapeake' | grep -ciE 'high rise bridge.+no scheduled bridge openings')"
+
+if [ "1" = "$(ping -c 1 1.1.1.1 2>&1 > /dev/null | grep -ci 'network is unreachable')" ] ; then
+	message="--"
+	color=$BLOCK_TEXT_COLOR_DEGRADED
+elif [ "$liftScheduled" = "1" ] ; then
+	message="No lifts"
+	color=$BLOCK_TEXT_COLOR_GOOD
+else
+	message="Scheduled lifts"
+	color=$BLOCK_TEXT_COLOR_BAD
+fi
+
+echo "{\"full_text\":\"$message\",\"color\"=\"$color\"}"
