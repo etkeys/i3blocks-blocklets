@@ -8,7 +8,9 @@ battime="$(echo $batstat | awk '{print $5}')"
 result="--"
 
 if [ "$acstat" = 'on-line' ] ; then
-	if [ "$batmode" = 'Discharging' ] && [ "$batlvl" = "0%" ] ; then
+	if [ "$batstat" = '' ] ; then
+		result="AC"
+	elif [ "$batmode" = 'Discharging' ] && [ "$batlvl" = "0%" ] ; then
 		result="AC"
 	elif [ "$batlvl" = "100%" ] ; then
 		result="BAT-F"
