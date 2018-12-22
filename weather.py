@@ -2,69 +2,142 @@
 
 
 import configparser
+import datetime
+import dpath.util
 import json
-from os import environ
+from os import getenv
 import pyowm
 import requests
+from string import Template
 import subprocess
+
+_DATE_STR_FORMAT_ = '%a %b %d, %Y'
+
+_DAY_FORECAST_SCHEMA_ = {
+    "temp":"Temperature/$minmax/Value",
+    "tempf":"RealFeelTemperature/$minmax/Value",
+    "conditioni":"$daypart/IconPhrase",
+    "conditions":"$daypart/ShortPhrase",
+    "precip":"$daypart/PrecipitationProbability",
+    "wind":"$daypart/Wind/Speed/Value",
+    "windg":"$daypart/WindGust/Speed/Value"
+}
+
+_DAY_FORECAST_TEMPLATE_ = """
+$daypart: $temp\u2109 ($tempf\u2109 )
+$conditioni - $conditions
+Precip: ${precip}%
+Wind: $wind ($windg) mph
+"""
 
 _TEMP_UNIT_ = 'fahrenheit'
 
-constants = ""
 accuApiKey = ""
+constants = dict()
+location = dict()
 owmApiKey = ""
 
 def Main():
-    Setup()
-    #HandleBlockButton()
-    statusMessage = GetStatusBarMessage()
-    print(statusMessage)
+    if IsInternetConnected():
+        Setup()
+        HandleBlockButton()
+        statusMessage = GetStatusBarMessage()
+        print(statusMessage)
+    else:
+        print(str("--\u2109  --"))
 
 def Setup():
     global accuApiKey
     global constants
+    global location
     global owmApiKey
 
-    config = configparser.ConfigParser()
-    config.read("%s/.config/my-configs/api_keys.ini" % environ["HOME"])
-
-    with open(str("%s/bin/i3blocks/block-constants.json" % environ["HOME"])) as j:
+    with open(str("%s/bin/i3blocks/block-constants.json" % getenv("HOME"))) as j:
         constants = json.load(j)
+    
+    config = configparser.ConfigParser()
+    config.read("%s/.config/my-configs/api_keys.ini" % getenv("HOME"))
 
     # api keys
     accuApiKey = config["weather"]["ACCUWEATHER_API_KEY"]
     owmApiKey = config["weather"]["OWM_API_KEY"]
 
-def HandleBlockButton():
-    try:
-        button = environ["BLOCK_BUTTON"]
-    except:
-        button = ""
-
-    # print("Block button: %s" % button)
-
-def GetStatusBarMessage():
-    global owmApiKey
-    result = ""
-
-    if not IsInternetConnected() :
-        result = str("--\u2109 --")
-        return result 
-
-    # Get the current of this computer
-    # FIXME How to get the location of the system without contacting the interet?
+    # Get the current location of this computer
+    # FIXME how to get the location of the system without contacting the internet?
     locrequest = requests.get("https://ipinfo.io").json()
-    loc = {
+    location = {
         "lat": float(locrequest["loc"].split(',')[0]),
         "lon": float(locrequest["loc"].split(',')[1])
     }
 
-    owm = pyowm.OWM(owmApiKey)
-    weather = owm.weather_at_coords(loc["lat"], loc["lon"]).get_weather();
+def HandleBlockButton():
+    global location
 
-    #print("Status: %s" % weather.get_status())
-    #print("Temp: %s\u2109" % int(weather.get_temperature(_TEMP_UNIT_)["temp"]))
+    button = getenv("BLOCK_BUTTON")
+    if not button is None:
+        accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
+                                    (accuApiKey,location["lat"], location["lon"])).json()
+        locKey = accuLocInfo["Key"]
+
+        day1forecast = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/1day/%s?apikey=%s&details=true" %
+                                    (locKey, accuApiKey)).json()["DailyForecasts"][0]
+
+    #with open('weather-sample.out') as w:
+    #    day1forecast = json.load(w)
+
+        message = GetDayForecast(day1forecast)
+
+        subprocess.run(["notify-send", message])
     
+def GetDayForecast(dayjson):
+    dayparts = ["Day", "Night"]
+    result = ""
+
+    # Get the date specified in dayjson and convert it to a
+    # pretty date
+    epoch=int(dayjson["EpochDate"])
+    datestr=datetime.date.fromtimestamp(epoch).strftime(_DATE_STR_FORMAT_)
+    result += "*** %s ***" % datestr
+
+    # For both Day and Night, get the parameterized values
+    # from the dayjson that will be inserted into forecast
+    # result message
+    for daypart in dayparts:
+        weatherparts = {"daypart": daypart}
+        dayvariants = GetDayVariantValues(daypart)
+
+        for name, path in _DAY_FORECAST_SCHEMA_.items():
+            path = Template(path).safe_substitute(dayvariants)
+            weatherparts[name] = dpath.util.get(dayjson,path)
+        
+        result += Template(_DAY_FORECAST_TEMPLATE_).safe_substitute(weatherparts)
+
+    return result
+
+# Certain values, like temperature, are not kept in the
+# "part of day" value like much of the other pieces of
+# weather information. Because of this, we have to have
+# parameter replacements values 
+def GetDayVariantValues(daypart):
+    result = dict()
+    if daypart == "Day":
+        result["minmax"] = "Maximum"
+            
+    elif daypart == "Night":
+        result["minmax"] = "Minimum"
+    
+    result["daypart"] = daypart
+    return result
+
+
+def GetStatusBarMessage():
+    global location
+    global owmApiKey
+    result = ""
+
+    owm = pyowm.OWM(owmApiKey)
+    weather = owm.weather_at_coords(location["lat"], location["lon"]).get_weather();
+
     result = str("%s\u2109  %s" % (int(weather.get_temperature(_TEMP_UNIT_)["temp"]),
                                     weather.get_status()))
     
