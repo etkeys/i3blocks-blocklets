@@ -46,6 +46,21 @@ def Main():
     else:
         print(str("--\u2109  --"))
 
+
+def IsInternetConnected():
+    result = False
+
+    output = subprocess.run(["ping", "-c", "1", "1.1.1.1"],
+                            timeout=2.0,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            encoding="utf-8").stderr
+
+    result = ("network is unreachable" not in output.lower())
+
+    return result
+
+
 def Setup():
     global accuApiKey
     global constants
@@ -70,6 +85,7 @@ def Setup():
         "lon": float(locrequest["loc"].split(',')[1])
     }
 
+
 def HandleBlockButton():
     global location
 
@@ -89,6 +105,7 @@ def HandleBlockButton():
 
         subprocess.run(["notify-send", message])
     
+
 def GetDayForecast(dayjson):
     dayparts = ["Day", "Night"]
     result = ""
@@ -113,6 +130,7 @@ def GetDayForecast(dayjson):
         result += Template(_DAY_FORECAST_TEMPLATE_).safe_substitute(weatherparts)
 
     return result
+
 
 # Certain values, like temperature, are not kept in the
 # "part of day" value like much of the other pieces of
@@ -141,19 +159,6 @@ def GetStatusBarMessage():
     result = str("%s\u2109  %s" % (int(weather.get_temperature(_TEMP_UNIT_)["temp"]),
                                     weather.get_status()))
     
-    return result
-
-def IsInternetConnected():
-    result = False
-
-    output = subprocess.run(["ping", "-c", "1", "1.1.1.1"],
-                            timeout=2.0,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            encoding="utf-8").stderr
-
-    result = ("network is unreachable" not in output.lower())
-
     return result
 
 
