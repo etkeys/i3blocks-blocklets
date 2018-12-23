@@ -6,3 +6,4 @@ block-deploy
 *.tmp
 *.out
 .gitignore
+*.diff
