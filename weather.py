@@ -24,13 +24,22 @@ _DAY_FORECAST_SCHEMA_ = {
 }
 
 _DAY_FORECAST_TEMPLATE_ = """
-$daypart: $temp\u2109 ($tempf\u2109 )
+$daypart $temp\u2109 ($tempf\u2109 )
 $conditioni - $conditions
 Precip: ${precip}%
 Wind: $wind ($windg) mph
 """
 
 _TEMP_UNIT_ = 'fahrenheit'
+
+_WEATHER_FORECAST_TMP_FILE_="/tmp/weather-forecast"
+
+_YAD_DISPLAY_COMMAND_="""exec yad \
+--posx=$posx \
+--posy=20 --undecorated --no-buttons \
+--close-on-unfocus --fixed \
+--text=\"$(cat $weather_forecast_tmp_file)\""""
+
 
 accuApiKey = ""
 constants = dict()
@@ -90,31 +99,39 @@ def HandleBlockButton():
     global location
 
     button = getenv("BLOCK_BUTTON")
-    if not button is None:
+    if button is not None:
         accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
-                                    (accuApiKey,location["lat"], location["lon"])).json()
+                                   (accuApiKey,location["lat"], location["lon"])).json()
         locKey = accuLocInfo["Key"]
 
         day1forecast = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/1day/%s?apikey=%s&details=true" %
-                                    (locKey, accuApiKey)).json()["DailyForecasts"][0]
-
-    #with open('weather-sample.out') as w:
-    #    day1forecast = json.load(w)
+                                   (locKey, accuApiKey)).json()["DailyForecasts"][0]
+        
+        # with open('/tmp/weather-sample.out') as w:
+        #     day1forecast = json.load(w)
 
         message = GetDayForecast(day1forecast)
+        with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
+            w.write(message)
+        
+        runargs = ['i3-msg','-q',Template(_YAD_DISPLAY_COMMAND_).safe_substitute(dict(
+            weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
+            posx=getenv("BLOCK_X")
+        ))]
+        #print(runargs)
 
-        subprocess.run(["notify-send", message])
-    
+        subprocess.run(runargs)
+
 
 def GetDayForecast(dayjson):
     dayparts = ["Day", "Night"]
-    result = ""
 
     # Get the date specified in dayjson and convert it to a
     # pretty date
     epoch=int(dayjson["EpochDate"])
     datestr=datetime.date.fromtimestamp(epoch).strftime(_DATE_STR_FORMAT_)
-    result += "*** %s ***" % datestr
+    result = "*** %s ***" % datestr
+
 
     # For both Day and Night, get the parameterized values
     # from the dayjson that will be inserted into forecast
