@@ -99,28 +99,30 @@ def HandleBlockButton():
     global location
 
     button = getenv("BLOCK_BUTTON")
-    if button is not None:
-        accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
-                                   (accuApiKey,location["lat"], location["lon"])).json()
-        locKey = accuLocInfo["Key"]
+    if not button:
+        return
 
-        day1forecast = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/1day/%s?apikey=%s&details=true" %
-                                   (locKey, accuApiKey)).json()["DailyForecasts"][0]
-        
-        # with open('/tmp/weather-sample.out') as w:
-        #     day1forecast = json.load(w)
+    accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
+                                (accuApiKey,location["lat"], location["lon"])).json()
+    locKey = accuLocInfo["Key"]
 
-        message = GetDayForecast(day1forecast)
-        with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
-            w.write(message)
-        
-        runargs = ['i3-msg','-q',Template(_YAD_DISPLAY_COMMAND_).safe_substitute(dict(
-            weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
-            posx=getenv("BLOCK_X")
-        ))]
-        #print(runargs)
+    day1forecast = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/1day/%s?apikey=%s&details=true" %
+                                (locKey, accuApiKey)).json()["DailyForecasts"][0]
+    
+    # with open('/tmp/weather-sample.out') as w:
+    #     day1forecast = json.load(w)
 
-        subprocess.run(runargs)
+    message = GetDayForecast(day1forecast)
+    with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
+        w.write(message)
+    
+    runargs = ['i3-msg','-q',Template(_YAD_DISPLAY_COMMAND_).safe_substitute(dict(
+        weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
+        posx=getenv("BLOCK_X")
+    ))]
+    #print(runargs)
+
+    subprocess.run(runargs)
 
 
 def GetDayForecast(dayjson):
