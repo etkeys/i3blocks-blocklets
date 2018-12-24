@@ -12,6 +12,7 @@ from string import Template
 import subprocess
 
 _DATE_STR_FORMAT_ = '%a %b %d, %Y'
+_DATE_STR_FORMAT_WITH_TIME_ = '%l:%M %p %a %b %d, %Y'
 
 _DAY_FORECAST_SCHEMA_ = {
     "temp":"Temperature/$minmax/Value",
@@ -28,6 +29,12 @@ $daypart $temp\u2109 ($tempf\u2109 )
 $conditioni - $conditions
 Precip: ${precip}%
 Wind: $wind ($windg) mph
+"""
+
+_HOURE_FORECAST_TEMPLATE = """
+$time
+$temp\u2109  $conditioni - $conditions
+Wind: $wind mph
 """
 
 _TEMP_UNIT_ = 'fahrenheit'
@@ -49,6 +56,7 @@ owmApiKey = ""
 def Main():
     if IsInternetConnected():
         Setup()
+        #GetOneDayDetailedForecast()
         HandleBlockButton()
         statusMessage = GetStatusBarMessage()
         print(statusMessage)
@@ -102,12 +110,61 @@ def HandleBlockButton():
     if not button:
         return
     elif button == "1": # Left click
-        maxDays = 1
+        message = GetOneDayDetailedForecast() 
     elif button == "3": # Right click
-        maxDays = 5
+        message = GetMultiDayForecasts(5)
     else:               # unhandled interaction
         return
 
+    with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
+        w.write(message)
+    
+    runargs = ['i3-msg','-q',Template(_YAD_DISPLAY_COMMAND_).safe_substitute(dict(
+        weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
+        posx=getenv("BLOCK_X")
+    ))]
+
+    subprocess.run(runargs)
+
+def GetOneDayDetailedForecast():
+    global location
+    global owmApiKey
+    result = ""
+
+    owm = pyowm.OWM(owmApiKey)
+    weathers = owm.three_hours_forecast_at_coords(location["lat"], location["lon"]).get_forecast().get_weathers()
+    
+    for w in range(8):
+        aWeather = weathers[w]
+        weatherparts = {
+            "time": GetForecastTimeHeader(str(aWeather.get_reference_time()), _DATE_STR_FORMAT_WITH_TIME_),
+            "temp": int(aWeather.get_temperature(_TEMP_UNIT_)["temp"]),
+            "conditioni": aWeather.get_status(),
+            "conditions": aWeather.get_detailed_status(),
+            "precip": int(GetOwmPrecipPercentage([aWeather.get_rain(), aWeather.get_snow()])),
+            "wind": int(aWeather.get_wind("miles_hour")["speed"])
+        }
+
+        result += Template(_HOURE_FORECAST_TEMPLATE).safe_substitute(weatherparts)
+
+    return result
+
+def GetForecastTimeHeader(epochstr, ctimefmt):
+    datestr = datetime.datetime.fromtimestamp(int(epochstr)).strftime(ctimefmt)
+    result = "***** %s *****" % datestr
+
+    return result
+
+def GetOwmPrecipPercentage(precipDicts):
+    result = 0
+    for pDict in precipDicts:
+        if pDict and float(pDict["3h"]) > result:
+            result = pDict["3h"]
+
+    return result * 100
+
+
+def GetMultiDayForecasts(numOfDays):
     accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
                                 (accuApiKey,location["lat"], location["lon"])).json()
     locKey = accuLocInfo["Key"]
@@ -121,28 +178,16 @@ def HandleBlockButton():
     #     dayforecasts = json.load(w)["DailyForecasts"]
 
     message = ""
-    for d in range(maxDays):
+    for d in range(numOfDays):
         message += "%s\n" % GetDayForecast(dayforecasts[d])
 
-    with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
-        w.write(message)
-    
-    runargs = ['i3-msg','-q',Template(_YAD_DISPLAY_COMMAND_).safe_substitute(dict(
-        weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
-        posx=getenv("BLOCK_X")
-    ))]
-
-    subprocess.run(runargs)
+    return message
 
 
 def GetDayForecast(dayjson):
     dayparts = ["Day", "Night"]
 
-    # Get the date specified in dayjson and convert it to a
-    # pretty date
-    epoch=int(dayjson["EpochDate"])
-    datestr=datetime.date.fromtimestamp(epoch).strftime(_DATE_STR_FORMAT_)
-    result = "***** %s *****" % datestr
+    result = "%s\n" % GetForecastTimeHeader(dayjson["EpochDate"], _DATE_STR_FORMAT_)
 
 
     # For both Day and Night, get the parameterized values
