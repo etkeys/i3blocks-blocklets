@@ -101,18 +101,29 @@ def HandleBlockButton():
     button = getenv("BLOCK_BUTTON")
     if not button:
         return
+    elif button == "1": # Left click
+        maxDays = 1
+    elif button == "3": # Right click
+        maxDays = 5
+    else:               # unhandled interaction
+        return
 
     accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
                                 (accuApiKey,location["lat"], location["lon"])).json()
     locKey = accuLocInfo["Key"]
 
-    day1forecast = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/1day/%s?apikey=%s&details=true" %
-                                (locKey, accuApiKey)).json()["DailyForecasts"][0]
-    
-    # with open('/tmp/weather-sample.out') as w:
-    #     day1forecast = json.load(w)
+    dayforecasts = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/5day/%s?apikey=%s&details=true" %
+                            (locKey, accuApiKey)).json()["DailyForecasts"]
 
-    message = GetDayForecast(day1forecast)
+    # print(dayforecast)
+
+    # with open('/tmp/weather-sample.out') as w:
+    #     dayforecasts = json.load(w)["DailyForecasts"]
+
+    message = ""
+    for d in range(maxDays):
+        message += "%s\n" % GetDayForecast(dayforecasts[d])
+
     with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
         w.write(message)
     
@@ -120,7 +131,6 @@ def HandleBlockButton():
         weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
         posx=getenv("BLOCK_X")
     ))]
-    #print(runargs)
 
     subprocess.run(runargs)
 
@@ -132,7 +142,7 @@ def GetDayForecast(dayjson):
     # pretty date
     epoch=int(dayjson["EpochDate"])
     datestr=datetime.date.fromtimestamp(epoch).strftime(_DATE_STR_FORMAT_)
-    result = "*** %s ***" % datestr
+    result = "***** %s *****" % datestr
 
 
     # For both Day and Night, get the parameterized values
