@@ -175,8 +175,10 @@ def GetStatusBarMessage():
     owm = pyowm.OWM(owmApiKey)
     weather = owm.weather_at_coords(location["lat"], location["lon"]).get_weather();
 
+    #print(weather.to_JSON())
+
     result = str("%s\u2109  %s" % (int(weather.get_temperature(_TEMP_UNIT_)["temp"]),
-                                    weather.get_status()))
+                                    weather.get_detailed_status()))
     
     return result
 
