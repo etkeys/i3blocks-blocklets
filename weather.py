@@ -11,6 +11,8 @@ import requests
 from string import Template
 import subprocess
 
+_DARKSKY_API_ADDRESS_ = "https://api.darksky.net/forecast/$apikey/$lat,$lon?units=us&exclude=$exclude_blocks"
+
 _DATE_STR_FORMAT_ = '%a %b %d, %Y'
 _DATE_STR_FORMAT_WITH_TIME_ = '%l:%M %p %a %b %d, %Y'
 
@@ -37,6 +39,12 @@ $temp\u2109  $conditioni - $conditions
 Wind: $wind mph
 """
 
+# Factor to gauge if the difference between
+# DarkSky temperature and apperent temperature
+# (what it feels like) is significant. Value is
+# in degrees F.
+_TEMP_APPARENT_TEMP_SIGNIFICANCE_DIFF_ = 5
+
 _TEMP_UNIT_ = 'fahrenheit'
 
 _WEATHER_FORECAST_TMP_FILE_="/tmp/weather-forecast"
@@ -49,6 +57,7 @@ _YAD_DISPLAY_COMMAND_="""exec yad \
 
 
 accuApiKey = ""
+dsApiKey = ""
 constants = dict()
 location = dict()
 owmApiKey = ""
@@ -80,6 +89,7 @@ def IsInternetConnected():
 
 def Setup():
     global accuApiKey
+    global dsApiKey
     global constants
     global location
     global owmApiKey
@@ -93,6 +103,7 @@ def Setup():
     # api keys
     accuApiKey = config["weather"]["ACCUWEATHER_API_KEY"]
     owmApiKey = config["weather"]["OWM_API_KEY"]
+    dsApiKey = config["weather"]["DARKSKY_API_KEY"]
 
     # Get the current location of this computer
     # FIXME how to get the location of the system without contacting the internet?
@@ -224,19 +235,50 @@ def GetDayVariantValues(daypart):
 
 def GetStatusBarMessage():
     global location
-    global owmApiKey
+    global dsApiKeys
     result = ""
 
-    owm = pyowm.OWM(owmApiKey)
-    weather = owm.weather_at_coords(location["lat"], location["lon"]).get_weather();
+    reqParams = GetDarkSkyRequestParameters("current-conditions")
+    requrl = Template(_DARKSKY_API_ADDRESS_).safe_substitute(reqParams)
+    weather = requests.get(requrl).json()["currently"]
 
-    #print(weather.to_JSON())
+    if HasSignificatApparentTemperatureDifference(weather):
+        result = "%s\u2109 (%s\u2109 ) %s" % (int(weather["temperature"]),
+                                                int(weather["apparentTemperature"]),
+                                                weather["summary"])
+    else:
+        result = "%s\u2109  %s" % (int(weather["temperature"]),
+                                    weather["summary"])
 
-    result = str("%s\u2109  %s" % (int(weather.get_temperature(_TEMP_UNIT_)["temp"]),
-                                    weather.get_detailed_status()))
-    
     return result
 
+def GetDarkSkyRequestParameters(reqTypeStr):
+    result = {
+        "apikey": dsApiKey,
+        "lat": location["lat"],
+        "lon": location["lon"]
+    }
+
+    excludeItems = ["flags"]
+
+    if reqTypeStr == "current-conditions":
+        reqExcludeItems = ["minutely","hourly","daily"]
+    else:
+        reqExcludeItems = []
+
+    excludeItems.extend(reqExcludeItems)
+
+    result["exclude_blocks"] = ",".join(excludeItems)
+
+    return result
+
+def HasSignificatApparentTemperatureDifference(weatherjson):
+    temp = weatherjson["temperature"]
+    appTemp = weatherjson["apparentTemperature"]
+
+    result = (abs(temp - appTemp) > _TEMP_APPARENT_TEMP_SIGNIFICANCE_DIFF_)
+
+    return result
 
 if __name__ == "__main__":
     Main()
