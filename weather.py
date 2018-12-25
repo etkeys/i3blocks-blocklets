@@ -26,9 +26,17 @@ _DAY_FORECAST_SCHEMA_ = {
     "windg":"$daypart/WindGust/Speed/Value"
 }
 
-_DAY_FORECAST_TEMPLATE_ = """
-$daypart $temp\u2109 ($tempf\u2109 )
-$conditioni - $conditions
+# _DAY_FORECAST_TEMPLATE_ = """
+# $daypart $temp\u2109 ($tempf\u2109 )
+# $conditioni - $conditions
+# Precip: ${precip}%
+# Wind: $wind ($windg) mph
+# """
+
+_DAY_FORECAST_TEMPLATE_="""
+$date
+$condition
+$temp_l\u2109 ($temp_al\u2109 ) - $temp_h\u2109 ($temp_ah\u2109 )
 Precip: ${precip}%
 Wind: $wind ($windg) mph
 """
@@ -65,10 +73,9 @@ owmApiKey = ""
 def Main():
     if IsInternetConnected():
         Setup()
-        #GetOneDayDetailedForecast()
+        #GetMultiDayForecasts(5)
         HandleBlockButton()
-        statusMessage = GetStatusBarMessage()
-        print(statusMessage)
+        print(GetStatusBarMessage())
     else:
         print(str("--\u2109  --"))
 
@@ -176,79 +183,56 @@ def GetOwmPrecipPercentage(precipDicts):
 
 
 def GetMultiDayForecasts(numOfDays):
-    accuLocInfo = requests.get("http://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=%s&q=%s,%s" %
-                                (accuApiKey,location["lat"], location["lon"])).json()
-    locKey = accuLocInfo["Key"]
+    weather = GetWeatherRequestResponse("multiday-forecasts")["daily"]
 
-    dayforecasts = requests.get("http://dataservice.accuweather.com/forecasts/v1/daily/5day/%s?apikey=%s&details=true" %
-                            (locKey, accuApiKey)).json()["DailyForecasts"]
-
-    # print(dayforecast)
-
-    # with open('/tmp/weather-sample.out') as w:
-    #     dayforecasts = json.load(w)["DailyForecasts"]
-
-    message = ""
+    message = "%s\n\n" % weather["summary"]
     for d in range(numOfDays):
-        message += "%s\n" % GetDayForecast(dayforecasts[d])
+        message += "%s\n" % GetDayForecast(weather["data"][d])
 
     return message
 
 
 def GetDayForecast(dayjson):
-    dayparts = ["Day", "Night"]
 
-    result = "%s\n" % GetForecastTimeHeader(dayjson["EpochDate"], _DATE_STR_FORMAT_)
-
-
-    # For both Day and Night, get the parameterized values
-    # from the dayjson that will be inserted into forecast
-    # result message
-    for daypart in dayparts:
-        weatherparts = {"daypart": daypart}
-        dayvariants = GetDayVariantValues(daypart)
-
-        for name, path in _DAY_FORECAST_SCHEMA_.items():
-            path = Template(path).safe_substitute(dayvariants)
-            weatherparts[name] = dpath.util.get(dayjson,path)
-        
-        result += Template(_DAY_FORECAST_TEMPLATE_).safe_substitute(weatherparts)
-
-    return result
-
-
-# Certain values, like temperature, are not kept in the
-# "part of day" value like much of the other pieces of
-# weather information. Because of this, we have to have
-# parameter replacements values 
-def GetDayVariantValues(daypart):
-    result = dict()
-    if daypart == "Day":
-        result["minmax"] = "Maximum"
-            
-    elif daypart == "Night":
-        result["minmax"] = "Minimum"
+    result = "%s\n" % GetForecastTimeHeader(dayjson["time"], _DATE_STR_FORMAT_)
     
-    result["daypart"] = daypart
-    return result
+    forecastParams = {
+        "date": GetForecastTimeHeader(dayjson["time"], _DATE_STR_FORMAT_),
+        "condition": dayjson["summary"],
+        "temp_l": int(dayjson["temperatureLow"]),
+        "temp_al": int(dayjson["apparentTemperatureLow"]),
+        "temp_h": int(dayjson["temperatureHigh"]),
+        "temp_ah": int(dayjson["apparentTemperatureHigh"]),
+        "precip": int(float(dayjson["precipProbability"]) * 100),
+        "wind": dayjson["windSpeed"],
+        "windg": dayjson["windGust"]
+    }
 
+    result = Template(_DAY_FORECAST_TEMPLATE_).safe_substitute(forecastParams)
+    
+    return result
 
 def GetStatusBarMessage():
     global location
     global dsApiKeys
     result = ""
 
-    reqParams = GetDarkSkyRequestParameters("current-conditions")
-    requrl = Template(_DARKSKY_API_ADDRESS_).safe_substitute(reqParams)
-    weather = requests.get(requrl).json()["currently"]
+    weather = GetWeatherRequestResponse("current-conditions")["currently"]
 
-    if HasSignificatApparentTemperatureDifference(weather):
+    if HasSignificatApparentTemperatureDifference(weather, ["temperature","apparentTemperature"]):
         result = "%s\u2109 (%s\u2109 ) %s" % (int(weather["temperature"]),
                                                 int(weather["apparentTemperature"]),
                                                 weather["summary"])
     else:
         result = "%s\u2109  %s" % (int(weather["temperature"]),
                                     weather["summary"])
+
+    return result
+
+def GetWeatherRequestResponse(reqTypeStr):
+    reqParams = GetDarkSkyRequestParameters(reqTypeStr)
+    requrl = Template(_DARKSKY_API_ADDRESS_).safe_substitute(reqParams)
+    result = requests.get(requrl).json()
 
     return result
 
@@ -259,10 +243,12 @@ def GetDarkSkyRequestParameters(reqTypeStr):
         "lon": location["lon"]
     }
 
-    excludeItems = ["flags"]
+    excludeItems = ["flags","minutely"]
 
     if reqTypeStr == "current-conditions":
-        reqExcludeItems = ["minutely","hourly","daily"]
+        reqExcludeItems = ["hourly","daily"]
+    elif reqTypeStr == "multiday-forecasts":
+        reqExcludeItems = ["currently", "hourly"]
     else:
         reqExcludeItems = []
 
@@ -272,9 +258,9 @@ def GetDarkSkyRequestParameters(reqTypeStr):
 
     return result
 
-def HasSignificatApparentTemperatureDifference(weatherjson):
-    temp = weatherjson["temperature"]
-    appTemp = weatherjson["apparentTemperature"]
+def HasSignificatApparentTemperatureDifference(weatherjson, targetKeys):
+    temp = weatherjson[targetKeys[0]]
+    appTemp = weatherjson[targetKeys[1]]
 
     result = (abs(temp - appTemp) > _TEMP_APPARENT_TEMP_SIGNIFICANCE_DIFF_)
 
