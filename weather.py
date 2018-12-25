@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
-
 import configparser
 import datetime
-import dpath.util
 import json
 from os import getenv
-import pyowm
 import requests
 from string import Template
 import subprocess
@@ -16,23 +13,6 @@ _DARKSKY_API_ADDRESS_ = "https://api.darksky.net/forecast/$apikey/$lat,$lon?unit
 _DATE_STR_FORMAT_ = '%a %b %d, %Y'
 _DATE_STR_FORMAT_WITH_TIME_ = '%l:%M %p %a %b %d, %Y'
 
-_DAY_FORECAST_SCHEMA_ = {
-    "temp":"Temperature/$minmax/Value",
-    "tempf":"RealFeelTemperature/$minmax/Value",
-    "conditioni":"$daypart/IconPhrase",
-    "conditions":"$daypart/ShortPhrase",
-    "precip":"$daypart/PrecipitationProbability",
-    "wind":"$daypart/Wind/Speed/Value",
-    "windg":"$daypart/WindGust/Speed/Value"
-}
-
-# _DAY_FORECAST_TEMPLATE_ = """
-# $daypart $temp\u2109 ($tempf\u2109 )
-# $conditioni - $conditions
-# Precip: ${precip}%
-# Wind: $wind ($windg) mph
-# """
-
 _DAY_FORECAST_TEMPLATE_="""
 $date
 $condition
@@ -41,10 +21,11 @@ Precip: ${precip}%
 Wind: $wind ($windg) mph
 """
 
-_HOURE_FORECAST_TEMPLATE = """
+_HOUR_FORECAST_TEMPLATE_ = """
 $time
-$temp\u2109  $conditioni - $conditions
-Wind: $wind mph
+$temp - $condition
+Precip: ${precip}%
+Wind: $wind ($windg) mph
 """
 
 # Factor to gauge if the difference between
@@ -63,17 +44,13 @@ _YAD_DISPLAY_COMMAND_="""exec yad \
 --close-on-unfocus --fixed \
 --text=\"$(cat $weather_forecast_tmp_file)\""""
 
-
-accuApiKey = ""
 dsApiKey = ""
 constants = dict()
 location = dict()
-owmApiKey = ""
 
 def Main():
     if IsInternetConnected():
         Setup()
-        #GetMultiDayForecasts(5)
         HandleBlockButton()
         print(GetStatusBarMessage())
     else:
@@ -95,11 +72,9 @@ def IsInternetConnected():
 
 
 def Setup():
-    global accuApiKey
     global dsApiKey
     global constants
     global location
-    global owmApiKey
 
     with open(str("%s/bin/i3blocks/block-constants.json" % getenv("HOME"))) as j:
         constants = json.load(j)
@@ -108,8 +83,6 @@ def Setup():
     config.read("%s/.config/my-configs/api_keys.ini" % getenv("HOME"))
 
     # api keys
-    accuApiKey = config["weather"]["ACCUWEATHER_API_KEY"]
-    owmApiKey = config["weather"]["OWM_API_KEY"]
     dsApiKey = config["weather"]["DARKSKY_API_KEY"]
 
     # Get the current location of this computer
@@ -128,12 +101,14 @@ def HandleBlockButton():
     if not button:
         return
     elif button == "1": # Left click
-        message = GetOneDayDetailedForecast() 
+        message = GetMultiHourForecasts(3) 
     elif button == "3": # Right click
         message = GetMultiDayForecasts(5)
     else:               # unhandled interaction
         return
 
+    # Need to write message to file the cat the file because
+    # i3-msg doesn't like new lines in arguments
     with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
         w.write(message)
     
@@ -144,57 +119,49 @@ def HandleBlockButton():
 
     subprocess.run(runargs)
 
-def GetOneDayDetailedForecast():
-    global location
-    global owmApiKey
-    result = ""
-
-    owm = pyowm.OWM(owmApiKey)
-    weathers = owm.three_hours_forecast_at_coords(location["lat"], location["lon"]).get_forecast().get_weathers()
-    
-    for w in range(8):
-        aWeather = weathers[w]
-        weatherparts = {
-            "time": GetForecastTimeHeader(str(aWeather.get_reference_time()), _DATE_STR_FORMAT_WITH_TIME_),
-            "temp": int(aWeather.get_temperature(_TEMP_UNIT_)["temp"]),
-            "conditioni": aWeather.get_status(),
-            "conditions": aWeather.get_detailed_status(),
-            "precip": int(GetOwmPrecipPercentage([aWeather.get_rain(), aWeather.get_snow()])),
-            "wind": int(aWeather.get_wind("miles_hour")["speed"])
-        }
-
-        result += Template(_HOURE_FORECAST_TEMPLATE).safe_substitute(weatherparts)
-
-    return result
-
-def GetForecastTimeHeader(epochstr, ctimefmt):
-    datestr = datetime.datetime.fromtimestamp(int(epochstr)).strftime(ctimefmt)
-    result = "***** %s *****" % datestr
-
-    return result
-
-def GetOwmPrecipPercentage(precipDicts):
-    result = 0
-    for pDict in precipDicts:
-        if pDict and float(pDict["3h"]) > result:
-            result = pDict["3h"]
-
-    return result * 100
-
-
-def GetMultiDayForecasts(numOfDays):
-    weather = GetWeatherRequestResponse("multiday-forecasts")["daily"]
+def GetMultiHourForecasts(intervalHours):
+    pass
+    weather = GetWeatherFromSource("multihour-forecasts")["hourly"]
 
     message = "%s\n\n" % weather["summary"]
-    for d in range(numOfDays):
-        message += "%s\n" % GetDayForecast(weather["data"][d])
+    for h in range(24):
+        if (h + 1) % intervalHours == 0:
+            message += "%s\n" % GetSingleHourForecast(weather["data"][h])
 
     return message
 
 
-def GetDayForecast(dayjson):
+def GetSingleHourForecast(hourjson):
 
-    result = "%s\n" % GetForecastTimeHeader(dayjson["time"], _DATE_STR_FORMAT_)
+    forecastParams = {
+        "time": GetForecastTimeHeader(hourjson["time"], _DATE_STR_FORMAT_WITH_TIME_),
+        "condition": hourjson["summary"],
+        "temp": "%s\u2109 " % int(hourjson["temperature"]),
+        "precip": int(float(hourjson["precipProbability"]) * 100),
+        "wind": hourjson["windSpeed"],
+        "windg": hourjson["windGust"]
+    }
+
+    if HasSignificatApparentTemperatureDifference(hourjson, ["temperature", "apparentTemperature"]):
+        forecastParams["temp"] = "%s\u2109 (%s\u2109 )" % (int(hourjson["temperature"]),
+                                                            int(hourjson["apparentTemperature"]))
+
+    result = Template(_HOUR_FORECAST_TEMPLATE_).safe_substitute(forecastParams)
+    
+    return result
+
+
+def GetMultiDayForecasts(numOfDays):
+    weather = GetWeatherFromSource("multiday-forecasts")["daily"]
+
+    message = "%s\n\n" % weather["summary"]
+    for d in range(numOfDays):
+        message += "%s\n" % GetSingleDayForecast(weather["data"][d])
+
+    return message
+
+
+def GetSingleDayForecast(dayjson):
     
     forecastParams = {
         "date": GetForecastTimeHeader(dayjson["time"], _DATE_STR_FORMAT_),
@@ -212,12 +179,20 @@ def GetDayForecast(dayjson):
     
     return result
 
+
+def GetForecastTimeHeader(epochstr, ctimefmt):
+    datestr = datetime.datetime.fromtimestamp(int(epochstr)).strftime(ctimefmt)
+    result = "***** %s *****" % datestr
+
+    return result
+
+
 def GetStatusBarMessage():
     global location
     global dsApiKeys
     result = ""
 
-    weather = GetWeatherRequestResponse("current-conditions")["currently"]
+    weather = GetWeatherFromSource("current-conditions")["currently"]
 
     if HasSignificatApparentTemperatureDifference(weather, ["temperature","apparentTemperature"]):
         result = "%s\u2109 (%s\u2109 ) %s" % (int(weather["temperature"]),
@@ -229,12 +204,14 @@ def GetStatusBarMessage():
 
     return result
 
-def GetWeatherRequestResponse(reqTypeStr):
+
+def GetWeatherFromSource(reqTypeStr):
     reqParams = GetDarkSkyRequestParameters(reqTypeStr)
     requrl = Template(_DARKSKY_API_ADDRESS_).safe_substitute(reqParams)
     result = requests.get(requrl).json()
 
     return result
+
 
 def GetDarkSkyRequestParameters(reqTypeStr):
     result = {
@@ -249,6 +226,8 @@ def GetDarkSkyRequestParameters(reqTypeStr):
         reqExcludeItems = ["hourly","daily"]
     elif reqTypeStr == "multiday-forecasts":
         reqExcludeItems = ["currently", "hourly"]
+    elif reqTypeStr == "multihour-forecasts":
+        reqExcludeItems = ["currently", "daily"]
     else:
         reqExcludeItems = []
 
@@ -258,6 +237,7 @@ def GetDarkSkyRequestParameters(reqTypeStr):
 
     return result
 
+
 def HasSignificatApparentTemperatureDifference(weatherjson, targetKeys):
     temp = weatherjson[targetKeys[0]]
     appTemp = weatherjson[targetKeys[1]]
@@ -265,6 +245,7 @@ def HasSignificatApparentTemperatureDifference(weatherjson, targetKeys):
     result = (abs(temp - appTemp) > _TEMP_APPARENT_TEMP_SIGNIFICANCE_DIFF_)
 
     return result
+
 
 if __name__ == "__main__":
     Main()
