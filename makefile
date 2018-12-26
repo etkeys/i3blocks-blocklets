@@ -5,7 +5,7 @@ IGNORE_DIRS = "templates $(STAGE_DIR)"
 STAGE_DIR = staged-blocklets.tmp
 
 
-default: all
+default: stage
 
 all: clean install
 
