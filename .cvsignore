@@ -1,9 +1,0 @@
-.git/
-__pycache__/
-block-template.sh
-block-deploy
-.cvsignore
-*.tmp
-*.out
-.gitignore
-*.diff

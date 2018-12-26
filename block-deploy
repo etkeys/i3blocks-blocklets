@@ -1,3 +1,0 @@
-#!/bin/bash
-
-rsync -Caiv --delete . ~/bin/i3blocks/
