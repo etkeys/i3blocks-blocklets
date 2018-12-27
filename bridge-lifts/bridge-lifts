@@ -1,11 +1,19 @@
 #!/bin/sh
 
+targetBridge=${_TARGET_BRIDGE_NAME:-"High Rise"}
+
 case $BLOCK_BUTTON in 
 	#1) echo "Left click action" ;;
 	3) curl 'http://www.511virginia.org/mobile/?menu_id=Chesapeake&ident=City%7CChesapeake' > ~/tmp/bridge-lift-page.out
 esac
 
-. ~/bin/i3blocks/block-constants
+# FIXME is there a better way to toggle between
+# where to read the constants files???
+if [ -e ../block-constants ] ; then
+	. ../block-constants/block-constants
+else
+	. ~/bin/i3blocks/block-constants
+fi
 
 liftScheduled="$(curl -s 'http://www.511virginia.org/mobile/?menu_id=Chesapeake&ident=City%7CChesapeake' | grep -ciE 'high rise bridge.+no scheduled bridge openings')"
 
@@ -20,4 +28,5 @@ else
 	color=$BLOCK_TEXT_COLOR_BAD
 fi
 
-echo "{\"full_text\":\"$message\",\"color\"=\"$color\"}"
+printf '{"full_text":"%s","color":"%s"}\n' "${targetBridge}: $message" "$color"
+exit 0
