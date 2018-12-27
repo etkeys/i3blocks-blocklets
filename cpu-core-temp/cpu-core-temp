@@ -1,27 +1,31 @@
 #!/bin/sh
 
-. ~/bin/i3blocks/block-constants
+# FIXME is there a better way to toggle between
+# where to read the constants files???
+if [ -e ../block-constants ] ; then
+	. ../block-constants/block-constants
+else
+	. ~/bin/i3blocks/block-constants
+fi
 
-# How to get cpu usage. From the i3blocks cpu_usage source
-# https://github.com/vivien/i3blocks-contrib/blob/master/cpu_usage/cpu_usage
+alarmThreshold=${_CPU_TEMP_ALARM_THRESHOLD:-70}
+colorstr=$BLOCK_TEXT_COLOR_NORMAL
+coreNumber=${_CPU_TARGET_CORE:-0}
+critThreshold=${_CPU_TEMP_CRIT_THRESHOLD:-82}
+tempstr=""
 
-#case $BLOCK_BUTTON in
-	#1) echo "Left click action" ;;
-	#2) echo "Right click action" ;;
-#esac
 
 if [ "$1" = "-h" ] ; then
 	echo "cpu-core-temp <core_number> <alarm_threshold>"
 	exit 0
 fi
 
-coreNumber=$1
-alarmThreshold=$2
+#case $BLOCK_BUTTON in
+	#1) echo "Left click action" ;;
+	#2) echo "Right click action" ;;
+#esac
 
-colorstr=$BLOCK_TEXT_COLOR_NORMAL
-tempstr=""
-
-case $coreNumber in
+case "$coreNumber" in
 	"0") tempstr="$(sensors | awk '/^Core 0/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
 	"1") tempstr="$(sensors | awk '/^Core 1/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
 	"2") tempstr="$(sensors | awk '/^Core 2/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
@@ -35,4 +39,10 @@ if [ "$tempnum" -gt "$alarmThreshold" ] || [ $tempnum = $alarmThreshold ] ; then
 	colorstr=$BLOCK_TEXT_COLOR_BAD
 fi
 
-echo "{\"name\":\"Core $coreNumber\",\"full_text\":\"$tempstr\",\"color\":\"$colorstr\"}"
+printf '{"full_text":"%s","color":"%s"}\n' "$tempstr" "$colorstr"
+
+if [ "$tempnum" -gt "$critThreshold" ] || [ $tempnum = $critThreshold ] ; then
+	exit 33 #urgent
+fi
+
+exit 1
