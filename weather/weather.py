@@ -114,7 +114,7 @@ def HandleBlockButton():
     
     runargs = ['i3-msg','-q',Template(_YAD_DISPLAY_COMMAND_).safe_substitute(dict(
         weather_forecast_tmp_file=_WEATHER_FORECAST_TMP_FILE_,
-        posx=getenv("BLOCK_X")
+        posx=int(getenv("BLOCK_X")) - 200
     ))]
 
     subprocess.run(runargs)
