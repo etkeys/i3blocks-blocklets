@@ -10,7 +10,8 @@ fi
 
 alarmThreshold=${_CPU_TEMP_ALARM_THRESHOLD:-70}
 colorstr=$BLOCK_TEXT_COLOR_NORMAL
-coreNumber=${_CPU_TARGET_CORE:-0}
+cpuCoreLabel=${BLOCK_INSTANCE:-"Core 0"}
+coreNumber=$(echo $cpuCoreLabel | awk '{print $2}')
 critThreshold=${_CPU_TEMP_CRIT_THRESHOLD:-82}
 tempstr=""
 
@@ -25,6 +26,7 @@ fi
 	#2) echo "Right click action" ;;
 #esac
 
+# FIXME How to consolidate all these repeated commands into one??
 case "$coreNumber" in
 	"0") tempstr="$(sensors | awk '/^Core 0/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
 	"1") tempstr="$(sensors | awk '/^Core 1/ {print $3}' | sed -E 's/(\+|\.0)//g')";;
