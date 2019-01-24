@@ -3,9 +3,12 @@
 acstat="$(acpi --ac-adapter | awk '/^Adapter 0:/ {print $3}')"
 batstat="$(acpi --battery | awk '/^Battery 0:/ {print}')"
 batmode="$(echo $batstat | awk '{print $3}' | sed 's/,//')"
-batlvl="$(echo $batstat | awk '{print $4}' | sed 's/,//')"
+batlvl="$(echo $batstat | grep -oE "[0-9]?{2}[0-9]%")"
 battime="$(echo $batstat | awk '{print $5}')"
 result="--"
+
+# Possible values for acpi --battery
+# Battery 0: Not charging, 0%, rate information unavailable
 
 if [ "$acstat" = 'on-line' ] ; then
 	if [ "$batstat" = '' ] || [ "$batlvl" = "0%" ] ; then
