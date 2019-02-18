@@ -1,7 +1,15 @@
 #!/bin/sh
 
 acstat="$(acpi --ac-adapter | awk '/^Adapter 0:/ {print $3}')"
-batstat="$(acpi --battery | awk '/^Battery 0:/ {print}')"
+batstatPrimary="$(acpi --battery | awk '/^Battery 0:/ {print}')"
+batstatSecondary="$(acpi --battery | awk '/^Battery 1:/ {print}')"
+
+if [ "$batstatSecondary" != "" ]; then
+	batstat="$batstatSecondary"
+else
+	batstat="$batstatPrimary"
+fi
+
 batmode="$(echo $batstat | awk '{print $3}' | sed 's/,//')"
 batlvl="$(echo $batstat | grep -oE "[0-9]?{2}[0-9]%")"
 battime="$(echo $batstat | awk '{print $5}')"
@@ -9,6 +17,8 @@ result="--"
 
 # Possible values for acpi --battery
 # Battery 0: Not charging, 0%, rate information unavailable
+# Battery 1: Charging, 76%, 00:27:06 until charged
+
 
 if [ "$acstat" = 'on-line' ] ; then
 	if [ "$batstat" = '' ] || [ "$batlvl" = "0%" ] ; then
