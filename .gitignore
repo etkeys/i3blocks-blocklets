@@ -1,3 +1,4 @@
-*.tmp
-*.out
-*.diff
+/**/*.tmp
+/**/*.out
+/**/*.diff
+/**/*.bak
