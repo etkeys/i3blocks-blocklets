@@ -1,0 +1,13 @@
+#!/bin/bash
+
+WALLPAPERS="$HOME/Pictures/Wallpapers/random"
+
+currTarget="$(md5sum $(readlink $WALLPAPERS/current) | awk '{print $1}')"
+lastTarget="$(md5sum $(readlink $WALLPAPERS/last) | awk '{print $1}')"
+
+if [[ "$currTarget" != "$lastTarget" ]] ; then
+
+    #notify-send "feh-bg-refresh triggered"
+    "$HOME/.fehbg"
+    ln -sfn "$(readlink $WALLPAPERS/current)" "$WALLPAPERS/last"
+fi
