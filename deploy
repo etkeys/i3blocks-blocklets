@@ -1,0 +1,24 @@
+#!/bin/bash
+
+validExts="json|py|sh"
+destdir="$HOME/bin/i3blocks"
+ignoredirs=('templates')
+
+for blocklet in $(ls -l | awk '/^d/ {print $9}'); do
+
+    ignore=false
+    for ign in "${ignoredirs[@]}"; do
+        if [ "$blocklet" == "$ign" ]; then
+            ignore=true
+        fi 
+    done
+
+    if $ignore; then
+        echo "Skipping $blocklet/ (marked ignore)"
+    else
+        for aFile in $(ls "$blocklet" | grep -oE "${blocklet}(\.($validExts))?") ; do
+            cp -upvt "$destdir" "$blocklet/$aFile" 
+        done
+    fi
+
+done
