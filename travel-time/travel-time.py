@@ -9,7 +9,6 @@ import subprocess
 
 _DEFAULT_STATUS_MESSAGE_ = "--:--"
 
-# _GOOGLEMAPS_API_ADDRESS_ = "https://maps.googleapis.com/maps/api/directions/json?units=imperial&mode=driving&departure_time=now&traffic_model=pessimistic&key=$gmpApiKey&origin=$origin&destination=$destination"
 _GOOGLEMAPS_API_ADDRESS_ = "https://maps.googleapis.com/maps/api/distancematrix/json?units=imperial&mode=driving&departure_time=now&key=$gmpApiKey&origins=$origin&destinations=$destination"
 
 _LOCATION_DEFINITION_FILE_ = "%s/.config/my-configs/travel-destinations.ini" % getenv("HOME")
@@ -69,14 +68,6 @@ def GetStatusMessage():
     reqUrl = Template(_GOOGLEMAPS_API_ADDRESS_).safe_substitute(globals())
 
     request = requests.get(reqUrl).json()
-
-    # print(json.dumps(request))
-    
-    # with open('/tmp/travel-time.tmp','r') as t:
-    #     request = json.load(t)
-
-    # result = "%s - %s" % (request["routes"][0]["legs"][0]["duration_in_traffic"]["text"],
-    #                     request["routes"][0]["summary"])
 
     result = "%s" % request["rows"][0]["elements"][0]["duration_in_traffic"]["text"]
 
