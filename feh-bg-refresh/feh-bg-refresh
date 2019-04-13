@@ -1,6 +1,6 @@
 #!/bin/bash
 
-WALLPAPERS="$HOME/Pictures/Wallpapers/random"
+WALLPAPERS="$HOME/Pictures/Wallpapers/randombg-dotnet"
 
 currTarget="$(md5sum $(readlink $WALLPAPERS/current) | awk '{print $1}')"
 lastTarget="$(md5sum $(readlink $WALLPAPERS/last) | awk '{print $1}')"
