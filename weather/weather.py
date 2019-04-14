@@ -107,7 +107,7 @@ def HandleBlockButton():
     else:               # unhandled interaction
         return
 
-    # Need to write message to file the cat the file because
+    # Need to write message to file then cat the file because
     # i3-msg doesn't like new lines in arguments
     with open(_WEATHER_FORECAST_TMP_FILE_,'w') as w:
         w.write(message)
@@ -120,7 +120,6 @@ def HandleBlockButton():
     subprocess.run(runargs)
 
 def GetMultiHourForecasts(intervalHours):
-    pass
     weather = GetWeatherFromSource("multihour-forecasts")["hourly"]
 
     message = "%s\n\n" % weather["summary"]
