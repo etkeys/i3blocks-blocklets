@@ -21,6 +21,9 @@ Precip: ${precip}%
 Wind: $wind ($windg) mph
 """
 
+_FORECAST_MULTIDAY_RANGE_ = 7
+_FORECAST_MULTIHOUR_INTERVAL_ = 3
+
 _HOUR_FORECAST_TEMPLATE_ = """
 $time
 $temp - $condition
@@ -101,9 +104,9 @@ def HandleBlockButton():
     if not button:
         return
     elif button == "1": # Left click
-        message = GetMultiHourForecasts(3) 
+        message = GetMultiHourForecasts(_FORECAST_MULTIHOUR_INTERVAL_) 
     elif button == "3": # Right click
-        message = GetMultiDayForecasts(5)
+        message = GetMultiDayForecasts(_FORECAST_MULTIDAY_RANGE_)
     else:               # unhandled interaction
         return
 
