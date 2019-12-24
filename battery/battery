@@ -26,11 +26,11 @@ if [ "$acstat" = 'on-line' ] ; then
 	elif [ "$batlvl" = "100%" ] ; then
 		result="BAT-F"
 	else
-		result="BAT-C $batlvl ($battime)"
+		result="BAT-C $batlvl $battime"
 	fi
 else
 	if [ "$batmode" = 'Discharging' ] ; then
-		result="BAT-D ($battime)"
+		result="BAT-D $batlvl"
 	fi
 fi
 
