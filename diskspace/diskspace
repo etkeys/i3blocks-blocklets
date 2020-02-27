@@ -5,4 +5,4 @@
 	#2) echo "Right click action" ;;
 #esac
 
-echo "$(df -H | awk '/\/$/ {print $4}')"
+echo "$(df -h | awk '/\/$/ {print $4}')"
