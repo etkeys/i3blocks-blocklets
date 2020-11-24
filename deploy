@@ -1,8 +1,12 @@
 #!/bin/bash
 
 validExts="json|py|sh"
-destdir="$HOME/bin/i3blocklets"
+destdir="./blocklets.d"
 ignoredirs=('templates')
+
+if [ ! -d "$destdir" ]; then
+    mkdir -p "$destdir"
+fi
 
 for blocklet in $(ls -l | awk '/^d/ {print $9}'); do
 
