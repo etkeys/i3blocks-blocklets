@@ -48,7 +48,6 @@ _YAD_DISPLAY_COMMAND_="""exec yad \
 --text=\"$(cat $weather_forecast_tmp_file)\""""
 
 dsApiKey = ""
-constants = dict()
 location = dict()
 
 def Main():
@@ -76,12 +75,8 @@ def IsInternetConnected():
 
 def Setup():
     global dsApiKey
-    global constants
     global location
 
-    with open(str("%s/bin/i3blocks/block-constants.json" % getenv("HOME"))) as j:
-        constants = json.load(j)
-    
     config = configparser.ConfigParser()
     config.read("%s/.config/my-configs/api_keys.ini" % getenv("HOME"))
 

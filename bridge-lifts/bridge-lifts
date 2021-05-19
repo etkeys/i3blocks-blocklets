@@ -7,14 +7,6 @@ case $BLOCK_BUTTON in
 	3) curl 'https://www.511virginia.org/mobile/?menu_id=Chesapeake&ident=City%7CChesapeake' > ~/tmp/bridge-lift-page.out
 esac
 
-# FIXME is there a better way to toggle between
-# where to read the constants files???
-if [ -e ../block-constants ] ; then
-	. ../block-constants/block-constants
-else
-	. ~/bin/i3blocks/block-constants
-fi
-
 liftScheduled="$(curl -s 'https://www.511virginia.org/mobile/?menu_id=Chesapeake&ident=City%7CChesapeake' | grep -ciE 'high rise bridge.+no scheduled bridge openings')"
 
 if [ "1" = "$(ping -c 1 1.1.1.1 2>&1 > /dev/null | grep -ci 'network is unreachable')" ] ; then

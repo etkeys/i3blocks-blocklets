@@ -1,9 +1,0 @@
-{
-    "colors":{
-        "block_text_color_bad":"#ff0000",
-        "block_text_color_degraded":"#ffcc00",
-        "block_text_color_good":"#00ff00",
-        "block_text_color_good2":"#00ffff",
-        "block_text_color_normal":"#ffffff"
-    }
-}

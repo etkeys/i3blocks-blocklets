@@ -40,9 +40,6 @@ def IsInternetConnected():
 def Setup():
     gbls = globals()
 
-    with open(str("%s/bin/i3blocks/block-constants.json" % getenv("HOME"))) as j:
-        gbls["constants"] = json.load(j)
-
     config = configparser.ConfigParser()
     config.read("%s/.config/my-configs/api_keys.ini" % getenv("HOME"))
 

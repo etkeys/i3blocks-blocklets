@@ -12,6 +12,9 @@ use utf8;
 use Getopt::Long;
 
 # default values
+my $clr_bad = $ENV{BLOCK_TEXT_COLOR_BAD};
+my $clr_norm = $ENV{BLOCK_TEXT_COLOR_NORMAL};
+my $clr_warn = $ENV{BLOCK_TEXT_COLOR_DEGRADED};
 my $t_warn = $ENV{T_WARN} // 50;
 my $t_crit = $ENV{T_CRIT} // 80;
 my $cpu_usage = -1;
@@ -53,10 +56,12 @@ printf "%.${decimals}f%%\n", $cpu_usage;
 
 # Print color, if needed
 if ($cpu_usage >= $t_crit) {
-    print "#FF0000\n";
+    print "${clr_bad}\n";
     exit 33;
 } elsif ($cpu_usage >= $t_warn) {
-    print "#FFFC00\n";
+    print "${clr_warn}\n";
+} else {
+    print "${clr_norm}\n";
 }
 
 exit 0;

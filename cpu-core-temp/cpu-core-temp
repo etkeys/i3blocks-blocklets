@@ -1,12 +1,4 @@
-#!/bin/sh
-
-# FIXME is there a better way to toggle between
-# where to read the constants files???
-if [ -e ../block-constants ] ; then
-	. ../block-constants/block-constants
-else
-	. ~/bin/i3blocks/block-constants
-fi
+#!/usr/bin/env bash
 
 alarmThreshold=${_CPU_TEMP_ALARM_THRESHOLD:-70}
 colorstr=$BLOCK_TEXT_COLOR_NORMAL
@@ -37,13 +29,13 @@ esac
 
 tempnum="$(echo $tempstr | grep -oE '^[0-9]+')"
 
-if [ "$tempnum" -gt "$alarmThreshold" ] || [ $tempnum = $alarmThreshold ] ; then
-	colorstr=$BLOCK_TEXT_COLOR_BAD
+if [ "$tempnum" -ge "$alarmThreshold" ] ; then
+	colorstr=$BLOCK_TEXT_COLOR_DEGRADED
 fi
 
 printf '{"full_text":"%s","color":"%s"}\n' "$tempstr" "$colorstr"
 
-if [ "$tempnum" -gt "$critThreshold" ] || [ $tempnum = $critThreshold ] ; then
+if [ "$tempnum" -ge "$critThreshold" ] ; then
 	exit 33 #urgent
 fi
 
