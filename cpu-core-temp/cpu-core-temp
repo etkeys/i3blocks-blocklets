@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-alarmThreshold=${_CPU_TEMP_ALARM_THRESHOLD:-70}
+alarmThreshold=${CPU_TEMP_ALARM_THRESHOLD:-55}
 colorstr=$BLOCK_TEXT_COLOR_NORMAL
 cpuCoreLabel=${BLOCK_INSTANCE:-"Core 0"}
 coreNumber=$(echo $cpuCoreLabel | awk '{print $2}')
-critThreshold=${_CPU_TEMP_CRIT_THRESHOLD:-82}
+critThreshold=${CPU_TEMP_CRIT_THRESHOLD:-70}
 tempstr=""
 
 
